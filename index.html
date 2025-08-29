@@ -1,237 +1,283 @@
 <!doctype html>
-<html lang="tr" data-bs-theme="dark">
+<html lang="tr">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Araba Hasar Seçici</title>
+  <title>Araba Hasar Seçici (Vue + Logging + Default=Orijinal)</title>
 
-  <!-- Bootstrap 5 -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Vue 3 (Global Build) -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 
   <style>
-    :root {
-      /* Tema renkleri (dilediğinde panelden değişeceksin) */
-      --color-original: #16a34a;         /* Orijinal */
+    :root{
+      /* Statik renk paleti — ihtiyaç olduğunda burayı değiştir */
+      --color-original: #16a34a;          /* Orijinal */
       --color-original-weak: rgba(22,163,74,.22);
 
-      --color-painted:  #0ea5e9;         /* Boyalı */
+      --color-painted:  #0ea5e9;          /* Boyalı */
       --color-painted-weak:  rgba(14,165,233,.22);
 
-      --color-replaced: #ef4444;         /* Değişen */
+      --color-replaced: #ef4444;          /* Değişen */
       --color-replaced-weak: rgba(239,68,68,.22);
 
-      --stage-bg: radial-gradient(1200px 600px at 30% -10%, #12161c 0%, #0b0d10 60%);
-      --border: #1f2833;
+      --bg1: #0b0d10; --bg2: #12161c; --border: #1f2833; --muted:#94a3b8; --text:#e6ebf2;
     }
-
-    body {
-      background: var(--stage-bg);
+    html, body { height: 100%; }
+    body{
+      margin:0; font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color: var(--text);
+      background: radial-gradient(1200px 600px at 30% -10%, #141a22 0%, #0b0d10 60%);
     }
-
-    .stage {
-      position: relative;
-      min-height: 360px;
-      display: grid;
-      place-items: center;
-      background: linear-gradient(180deg, #0f141b, #0b0d10);
-      border: 1px solid var(--border);
-      border-radius: .75rem;
-      padding: clamp(10px, 2.5vw, 20px);
+    header{
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+      display:flex; align-items:center; gap:12px; flex-wrap:wrap;
     }
-    .stage svg {
-      display: block;
-      max-width: 100%;
-      height: auto;
-      width: min(100%, 1000px);
+    header h1{ font-size:18px; margin:0; font-weight:600; letter-spacing:.2px; }
+    .legend{ display:flex; gap:14px; color:var(--muted); font-size:13px; align-items:center; flex-wrap:wrap; }
+    .dot{ width:14px; height:14px; border-radius:50%; display:inline-block; border:2px solid currentColor; }
+    .dot.original{ color: var(--color-original); background: var(--color-original-weak); }
+    .dot.painted{ color: var(--color-painted); background: var(--color-painted-weak); }
+    .dot.replaced{ color: var(--color-replaced); background: var(--color-replaced-weak); }
+
+    .wrap{ padding: 16px; max-width: 1200px; margin: 0 auto; }
+    .stage{
+      position:relative; display:grid; place-items:center; min-height:360px;
+      background: linear-gradient(180deg, #0f141b, #0b0d10); border:1px solid var(--border);
+      border-radius:12px; padding: clamp(10px, 2.5vw, 20px);
     }
-    .stage .empty {
-      position: absolute; inset: 0;
-      display: grid; place-items: center; text-align: center;
-      color: #9aa4b2; pointer-events: none;
-      padding: 1rem;
+    .stage svg{ width:min(100%, 1000px); height:auto; display:block; }
+    .empty{
+      position:absolute; inset:0; display:grid; place-items:center; text-align:center; color:var(--muted); pointer-events:none; padding:18px;
     }
+    .tools{ display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
+    .btn{
+      appearance:none; border:1px solid var(--border); background:#0f1520; color:var(--text);
+      padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600;
+    }
+    .btn:hover{ background:#121a28; border-color:#2a3647; }
+    .btn:active{ transform: translateY(1px); }
 
-    /* Parçalar */
-    .part { cursor: pointer; outline: none; transition: filter .15s ease; }
-    .part:hover { filter: drop-shadow(0 0 10px rgba(160,200,255,.35)); }
+    /* Parça etkileşimi */
+    .part{ cursor:pointer; outline:none; transition: filter .15s ease; }
+    .part:hover{ filter: drop-shadow(0 0 10px rgba(160,200,255,.35)); }
 
-    /* Duruma göre görünüm (renkler değişkenlerden gelir) */
-    .part.state-original { stroke: var(--color-original) !important; stroke-width: 2 !important; fill: var(--color-original-weak) !important; }
-    .part.state-painted  { stroke: var(--color-painted)  !important; stroke-width: 2 !important; fill: var(--color-painted-weak)  !important; }
-    .part.state-replaced { stroke: var(--color-replaced) !important; stroke-width: 2 !important; fill: var(--color-replaced-weak) !important; }
+    /* Durum sınıfları — sadece bu sınıflar uygulanır */
+    .state-original{ stroke: var(--color-original) !important; stroke-width:2 !important; fill: var(--color-original-weak) !important; }
+    .state-painted{  stroke: var(--color-painted)  !important; stroke-width:2 !important; fill: var(--color-painted-weak)  !important; }
+    .state-replaced{ stroke: var(--color-replaced) !important; stroke-width:2 !important; fill: var(--color-replaced-weak) !important; }
 
-    /* Saydam parçalarda da dolgu uygula */
-    .part[selected-transparent="1"].state-original { fill: var(--color-original-weak) !important; }
-    .part[selected-transparent="1"].state-painted  { fill: var(--color-painted-weak)  !important; }
-    .part[selected-transparent="1"].state-replaced { fill: var(--color-replaced-weak) !important; }
+    /* Saydam parçada da dolgu uygula */
+    .part[selected-transparent="1"].state-original{ fill: var(--color-original-weak) !important; }
+    .part[selected-transparent="1"].state-painted{  fill: var(--color-painted-weak)  !important; }
+    .part[selected-transparent="1"].state-replaced{ fill: var(--color-replaced-weak) !important; }
 
-    /* Araç butonları değişken renkleriyle */
-    .btn-tool { font-weight: 600; }
-    .btn-tool-original { border-color: var(--color-original) !important; color: var(--color-original) !important; }
-    .btn-tool-original.active, .btn-tool-original:hover { background: var(--color-original-weak) !important; }
-
-    .btn-tool-painted  { border-color: var(--color-painted)  !important; color: var(--color-painted)  !important; }
-    .btn-tool-painted.active, .btn-tool-painted:hover { background: var(--color-painted-weak) !important; }
-
-    .btn-tool-replaced { border-color: var(--color-replaced) !important; color: var(--color-replaced) !important; }
-    .btn-tool-replaced.active, .btn-tool-replaced:hover { background: var(--color-replaced-weak) !important; }
-
-    /* Renk rozetleri */
-    .badge-original { background: var(--color-original-weak); color: var(--color-original); border: 1px solid var(--color-original); }
-    .badge-painted  { background: var(--color-painted-weak);  color: var(--color-painted);  border: 1px solid var(--color-painted); }
-    .badge-replaced { background: var(--color-replaced-weak); color: var(--color-replaced); border: 1px solid var(--color-replaced); }
-
-    .muted { color: #9aa4b2; }
+    footer{ color:var(--muted); font-size:12px; padding:10px 16px; border-top:1px solid var(--border); }
   </style>
 </head>
 <body>
-  <nav class="navbar navbar-dark bg-dark border-bottom">
-    <div class="container-fluid">
-      <span class="navbar-brand fw-semibold">🚗 Araba Hasar Seçici</span>
-      <div class="d-none d-md-flex small text-secondary">
-        <span class="me-3">Tıklayın: seçili aracı uygular</span>
-        <span>Tekrar tıkla: temizler</span>
+  <div id="app">
+    <header>
+      <h1>Araba Hasar Seçici</h1>
+      <div class="legend">
+        <span><span class="dot original"></span> Orijinal</span>
+        <span><span class="dot painted"></span> Boyalı</span>
+        <span><span class="dot replaced"></span> Değişen</span>
+        <span class="muted">• Parçaya tıkla → Orijinal → Boyalı → Değişen → Orijinal…</span>
       </div>
-    </div>
-  </nav>
+    </header>
 
-  <div class="container my-3 my-md-4">
-    <div class="row g-3">
-      <!-- SOL: SVG sahnesi -->
-      <div class="col-12 col-lg-8">
-        <div class="stage">
-          <div id="empty" class="empty">
-            <div>
-              <div class="mb-2">car.svg yükleniyor…</div>
-              <div class="small muted">Kendi SVG’nizde tıklanacak öğelere <code>class="part"</code> verin.<br>Örn: <code>&lt;path id="kaput" class="part" data-name="Kaput"/&gt;</code></div>
-            </div>
-          </div>
-          <div id="svgWrap" aria-live="polite"></div>
-        </div>
+    <main class="wrap">
+      <section class="stage" ref="stage">
+        <div class="empty" v-if="loading">car.svg yükleniyor…<br><small class="muted">Tıklanacak öğelere <code>class="part"</code> vermen önerilir.</small></div>
+        <div id="svgHost" ref="svgHost" aria-live="polite"></div>
+      </section>
+
+      <div class="tools">
+        <button class="btn" @click="resetAllToOriginal">Hepsini Orijinal Yap</button>
       </div>
+    </main>
 
-      <!-- SAĞ: Panel -->
-      <div class="col-12 col-lg-4">
-        <div class="card bg-dark-subtle border-0">
-          <div class="card-body">
-            <!-- Araç (tool) seçimi -->
-            <div class="mb-3">
-              <label class="form-label fw-semibold">Uygulanacak durum</label>
-              <div class="btn-group w-100" role="group" aria-label="Durum seç">
-                <input type="radio" class="btn-check" name="tool" id="toolOriginal" value="original" checked>
-                <label class="btn btn-outline-secondary btn-tool btn-tool-original" for="toolOriginal">Orijinal</label>
+    <footer>
+      İpucu: Klavyede <strong>Enter</strong>/<strong>Space</strong> ile de parça durumunu değiştirebilirsin. (Önce parçaya odaklan)
+    </footer>
+  </div>
 
-                <input type="radio" class="btn-check" name="tool" id="toolPainted" value="painted">
-                <label class="btn btn-outline-secondary btn-tool btn-tool-painted" for="toolPainted">Boyalı</label>
-
-                <input type="radio" class="btn-check" name="tool" id="toolReplaced" value="replaced">
-                <label class="btn btn-outline-secondary btn-tool btn-tool-replaced" for="toolReplaced">Değişen</label>
-              </div>
-              <div class="form-text">Bir parçaya tıklayınca seçili durum atanır. Aynı durumu tekrar tıklarsanız temizlenir.</div>
-            </div>
-
-            <!-- Renk paleti -->
-            <div class="mb-3">
-              <label class="form-label fw-semibold">Renkler (dinamik)</label>
-              <div class="row g-2">
-                <div class="col-4">
-                  <div class="form-floating">
-                    <input type="color" id="colorOriginal" class="form-control form-control-color" value="#16a34a" title="Orijinal rengi">
-                    <label for="colorOriginal">Orijinal</label>
-                  </div>
-                </div>
-                <div class="col-4">
-                  <div class="form-floating">
-                    <input type="color" id="colorPainted" class="form-control form-control-color" value="#0ea5e9" title="Boyalı rengi">
-                    <label for="colorPainted">Boyalı</label>
-                  </div>
-                </div>
-                <div class="col-4">
-                  <div class="form-floating">
-                    <input type="color" id="colorReplaced" class="form-control form-control-color" value="#ef4444" title="Değişen rengi">
-                    <label for="colorReplaced">Değişen</label>
-                  </div>
-                </div>
-              </div>
-              <div class="form-text">Renk değiştirince tüm işaretlemeler anında güncellenir.</div>
-            </div>
-
-            <!-- Butonlar -->
-            <div class="d-flex gap-2 flex-wrap mb-3">
-              <button id="btnReset" class="btn btn-outline-secondary">Tümünü Temizle</button>
-              <button id="btnExport" class="btn btn-primary">JSON Dışa Aktar</button>
-              <label class="btn btn-outline-light mb-0">
-                JSON İçeri Al <input type="file" id="fileImport" accept="application/json" hidden>
-              </label>
-            </div>
-
-            <!-- Seçimler -->
-            <div>
-              <div class="d-flex align-items-center justify-content-between">
-                <h6 class="mb-2 fw-semibold">Seçimler</h6>
-                <span class="badge bg-secondary" id="countBadge">0</span>
-              </div>
-              <div class="table-responsive">
-                <table class="table table-sm table-dark table-striped align-middle mb-0">
-                  <thead>
-                    <tr>
-                      <th>Parça</th>
-                      <th>Durum</th>
-                      <th class="text-end">İşlem</th>
-                    </tr>
-                  </thead>
-                  <tbody id="selectionBody">
-                    <tr class="text-secondary"><td colspan="3">Henüz seçim yok.</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="form-text mt-2">İpucu: Parça isimlerini SVG'de <code>data-name</code> ile belirleyebilirsin.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div><!-- /row -->
-  </div><!-- /container -->
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
   <script>
-    // --- Durumlar ve renk paleti ---
-    const STATES = { NONE:'none', ORIGINAL:'original', PAINTED:'painted', REPLACED:'replaced' };
-    let palette = {
-      original: getComputedStyle(document.documentElement).getPropertyValue('--color-original').trim() || '#16a34a',
-      painted:  getComputedStyle(document.documentElement).getPropertyValue('--color-painted').trim()  || '#0ea5e9',
-      replaced: getComputedStyle(document.documentElement).getPropertyValue('--color-replaced').trim() || '#ef4444',
-    };
+  (() => {
+    const { createApp, reactive, onMounted, ref } = Vue;
 
-    const state = {
-      parts: new Map(),   // id -> element
-      values: new Map(),  // id -> 'original' | 'painted' | 'replaced' | 'none'
-      tool: STATES.ORIGINAL
-    };
+    // ------- Basit, genişletilebilir Logger (SOLID: tek sorumluluk) -------
+    function createLogger(sink = console){
+      const buffer = [];
+      const push = (level, type, data = {}) => {
+        const entry = { ts: new Date().toISOString(), level, type, ...data };
+        buffer.push(entry);
+        if (sink && typeof sink[level] === 'function') sink[level](`[${type}]`, entry);
+      };
+      return Object.freeze({
+        info: (type, data) => push('info',  type, data),
+        warn: (type, data) => push('warn',  type, data),
+        error:(type, data) => push('error', type, data),
+        get:  () => buffer.slice(),
+        clear:() => { buffer.length = 0; }
+      });
+    }
+    const logger = createLogger();
+    // Dış sistemlerle entegrasyon için global'e koyduk (isteğe bağlı)
+    window.damageLogger = logger;
 
-    const svgWrap = document.getElementById('svgWrap');
-    const emptyEl = document.getElementById('empty');
-    const selectionBody = document.getElementById('selectionBody');
-    const countBadge = document.getElementById('countBadge');
+    logger.info('APP_START', { message: 'Uygulama başlıyor' });
 
-    // SVG'yi içeri al
-    loadInlineSVG('car.svg').then(svg => {
-      emptyEl.remove();
-      svgWrap.appendChild(svg);
-      prepareParts(svg);
-    }).catch(err => {
-      console.error(err);
-      emptyEl.innerHTML = 'car.svg yüklenemedi.<br><span class="small muted">Dosyayı bir yerel sunucuda açın (örn. VSCode Live Server) veya SVG’yi doğrudan bu sayfaya inline gömün.</span>';
+    // --- State sabitleri ---
+    const STATES = Object.freeze({
+      ORIGINAL:  'original',
+      PAINTED:   'painted',
+      REPLACED:  'replaced',
     });
+    const ORDER = [STATES.ORIGINAL, STATES.PAINTED, STATES.REPLACED];
 
-    async function loadInlineSVG(url) {
+    // ---- Pure fonksiyonlar (fonksiyonel, test edilebilir) ----
+    function nextState(prev){
+      // Döngü: null -> original -> painted -> replaced -> original...
+      if (!prev) return ORDER[0];
+      const idx = ORDER.indexOf(prev);
+      if (idx === -1) return ORDER[0];
+      return ORDER[(idx + 1) % ORDER.length];
+    }
+    function classFor(state){
+      if (state === STATES.ORIGINAL) return 'state-original';
+      if (state === STATES.PAINTED)  return 'state-painted';
+      if (state === STATES.REPLACED) return 'state-replaced';
+      return '';
+    }
+    function applyStateClass(el, state){
+      el.classList.remove('state-original','state-painted','state-replaced');
+      const cls = classFor(state);
+      if (cls) el.classList.add(cls);
+      el.setAttribute('aria-pressed', cls ? 'true' : 'false');
+    }
+    function normalizePart(el, idGen){
+      if (!el.id) el.id = 'parca-' + idGen();
+      el.classList.add('part');
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-pressed', 'false');
+      const fill = el.getAttribute('fill');
+      if (!fill || fill === 'none') el.setAttribute('selected-transparent', '1');
+    }
+    function findPartElement(node, svgRoot){
+      const isShape = n => n && n.matches && n.matches('path,polygon,rect,circle,ellipse,polyline');
+      const isPart  = n => n && n.classList && n.classList.contains('part');
+      let cur = node;
+      while (cur && cur !== svgRoot && cur.nodeType === 1){
+        if (isPart(cur)) return cur;
+        if (isShape(cur)) return cur;
+        cur = cur.parentNode;
+      }
+      return null;
+    }
+
+    createApp({
+      setup(){
+        const svgHost = ref(null);
+        const stage   = ref(null);
+        const loading = ref(true);
+
+        // reaktif durum: id -> 'original' | 'painted' | 'replaced'
+        const model = reactive({
+          parts: new Map(),   // id -> element
+          values: new Map(),  // id -> state string
+        });
+
+        let __id = 1;
+        const nextId = () => __id++;
+
+        onMounted(async () => {
+          try{
+            const svg = await loadInlineSVG('car.svg');
+            loading.value = false;
+            svgHost.value.appendChild(svg);
+            logger.info('SVG_LOADED', { message: 'SVG eklendi' });
+
+            // parçaları topla & normalize et
+            const registered = prepareParts(svg, model, nextId);
+            logger.info('PARTS_REGISTERED', { count: registered });
+
+            // *** İSTENEN: DOM yüklenir yüklenmez hepsi ORİJİNAL ***
+            initAllToOriginal(model);
+
+            // tıklama: durum döngüsü
+            svg.addEventListener('click', (ev) => {
+              const target = findPartElement(ev.target, svg);
+              if (!target) return;
+              const id = target.id;
+              const prev = model.values.get(id);
+              const next = nextState(prev);
+              model.values.set(id, next);
+              applyStateClass(target, next);
+              logger.info('PART_STATE_CHANGED', { id, from: prev, to: next, by: 'click' });
+            });
+
+            // klavye: Enter/Space
+            svg.addEventListener('keydown', (ev) => {
+              if (ev.key !== 'Enter' && ev.key !== ' ') return;
+              const target = findPartElement(ev.target, svg);
+              if (!target) return;
+              ev.preventDefault();
+              const id = target.id;
+              const prev = model.values.get(id);
+              const next = nextState(prev);
+              model.values.set(id, next);
+              applyStateClass(target, next);
+              logger.info('PART_STATE_CHANGED', { id, from: prev, to: next, by: 'keyboard' });
+            });
+
+          }catch(err){
+            console.error(err);
+            loading.value = false;
+            svgHost.value.innerHTML = `<div class="empty">car.svg yüklenemedi.<br><small class="muted">Dosyayı bir yerel sunucuda açın veya SVG’yi inline gömün.</small></div>`;
+            logger.error('SVG_LOAD_FAILED', { reason: err.message });
+          }
+        });
+
+        function resetAllToOriginal(){
+          let changed = 0;
+          model.values.forEach((_, id) => {
+            const el = model.parts.get(id);
+            if (!el) return;
+            const prev = model.values.get(id);
+            if (prev !== STATES.ORIGINAL) {
+              model.values.set(id, STATES.ORIGINAL);
+              applyStateClass(el, STATES.ORIGINAL);
+              changed++;
+            }
+          });
+          logger.info('RESET_TO_ORIGINAL', { changed });
+        }
+
+        // başlangıç seti
+        function initAllToOriginal(model){
+          let count = 0;
+          model.parts.forEach((el, id) => {
+            model.values.set(id, STATES.ORIGINAL);
+            applyStateClass(el, STATES.ORIGINAL);
+            count++;
+          });
+          logger.info('INITIALIZED_TO_ORIGINAL', { count });
+        }
+
+        return { svgHost, stage, loading, resetAllToOriginal };
+      }
+    }).mount('#app');
+
+    // ----- Yardımcılar -----
+    async function loadInlineSVG(url){
       const res = await fetch(url);
-      if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+      if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const text = await res.text();
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(text, 'image/svg+xml');
-      const svg = doc.documentElement;
-      if (!svg.getAttribute('viewBox')) {
+      const doc  = new DOMParser().parseFromString(text, 'image/svg+xml');
+      const svg  = doc.documentElement;
+      if (!svg.getAttribute('viewBox')){
         const w = parseFloat(svg.getAttribute('width')) || 1200;
         const h = parseFloat(svg.getAttribute('height')) || 600;
         svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
@@ -241,219 +287,22 @@
       return svg;
     }
 
-    function prepareParts(svgRoot) {
-      let parts = svgRoot.querySelectorAll('.part');
-      if (!parts.length) {
-        parts = svgRoot.querySelectorAll('path, polygon, rect, circle, ellipse, polyline');
+    function prepareParts(svgRoot, model, idGen){
+      let nodes = svgRoot.querySelectorAll('.part');
+      if (!nodes.length){
+        nodes = svgRoot.querySelectorAll('path,polygon,rect,circle,ellipse,polyline');
       }
-      let autoId = 1;
-      parts.forEach(el => {
+      let registered = 0;
+      nodes.forEach(el => {
         const cs = getComputedStyle(el);
         if (cs.display === 'none' || cs.visibility === 'hidden') return;
-
-        if (!el.id) el.id = 'parca-' + (autoId++);
-        el.setAttribute('tabindex', '0');
-        el.setAttribute('role', 'button');
-        el.setAttribute('aria-pressed', 'false');
-
-        if (!el.getAttribute('fill') || el.getAttribute('fill') === 'none') {
-          el.setAttribute('selected-transparent', '1');
-        }
-
-        state.parts.set(el.id, el);
-        state.values.set(el.id, STATES.NONE);
-
-        el.addEventListener('click', () => setPartState(el.id, state.tool, {toggle:true}));
-        el.addEventListener('keydown', (ev) => {
-          if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); setPartState(el.id, state.tool, {toggle:true}); }
-          if (ev.key === 'Escape') { setPartState(el.id, STATES.NONE); }
-        });
+        normalizePart(el, idGen);
+        model.parts.set(el.id, el);
+        registered++;
       });
-
-      renderPanel();
+      return registered;
     }
-
-    function setPartState(id, newState, opts = {toggle:false}) {
-      const el = state.parts.get(id);
-      if (!el) return;
-
-      const prev = state.values.get(id) || STATES.NONE;
-
-      // Aynı duruma tıklandıysa toggle ile temizle
-      const finalState = (opts.toggle && prev === newState) ? STATES.NONE : newState;
-
-      // Tüm state sınıflarını kaldır
-      el.classList.remove('state-original', 'state-painted', 'state-replaced');
-      el.setAttribute('aria-pressed', finalState !== STATES.NONE ? 'true' : 'false');
-
-      // Yeni state sınıfını uygula
-      if (finalState === STATES.ORIGINAL) el.classList.add('state-original');
-      if (finalState === STATES.PAINTED)  el.classList.add('state-painted');
-      if (finalState === STATES.REPLACED) el.classList.add('state-replaced');
-
-      state.values.set(id, finalState);
-      renderPanel();
-    }
-
-    function renderPanel() {
-      // Listeyi oluştur
-      const rows = [];
-      state.values.forEach((val, id) => {
-        if (val === STATES.NONE) return;
-        const el = state.parts.get(id);
-        const name = el?.getAttribute('data-name') || id;
-        rows.push({id, name, val});
-      });
-      rows.sort((a,b) => a.name.localeCompare(b.name, 'tr'));
-
-      selectionBody.replaceChildren();
-      if (!rows.length) {
-        const tr = document.createElement('tr');
-        tr.className = 'text-secondary';
-        tr.innerHTML = `<td colspan="3">Henüz seçim yok.</td>`;
-        selectionBody.appendChild(tr);
-      } else {
-        rows.forEach(({id, name, val}) => {
-          const tr = document.createElement('tr');
-          const badgeCls =
-            val===STATES.ORIGINAL ? 'badge-original' :
-            val===STATES.PAINTED  ? 'badge-painted'  : 'badge-replaced';
-
-          tr.innerHTML = `
-            <td class="text-break">${escapeHtml(name)}</td>
-            <td><span class="badge ${badgeCls}">${labelFor(val)}</span></td>
-            <td class="text-end">
-              <button class="btn btn-sm btn-outline-light" data-id="${id}" data-action="clear">Temizle</button>
-            </td>
-          `;
-          selectionBody.appendChild(tr);
-        });
-      }
-      countBadge.textContent = String(rows.length);
-
-      // Satır butonları
-      selectionBody.querySelectorAll('button[data-action="clear"]').forEach(btn => {
-        btn.addEventListener('click', () => setPartState(btn.dataset.id, STATES.NONE));
-      });
-    }
-
-    function labelFor(val){
-      if (val===STATES.ORIGINAL) return 'Orijinal';
-      if (val===STATES.PAINTED)  return 'Boyalı';
-      if (val===STATES.REPLACED) return 'Değişen';
-      return '';
-    }
-
-    function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-    // --- Tool seçimi ---
-    document.querySelectorAll('input[name="tool"]').forEach(r => {
-      r.addEventListener('change', () => { state.tool = r.value; });
-    });
-
-    // --- Dışa/içe aktarım ---
-    document.getElementById('btnReset').addEventListener('click', () => {
-      state.values.forEach((_, id) => setPartState(id, STATES.NONE));
-    });
-
-    document.getElementById('btnExport').addEventListener('click', () => {
-      const selected = [];
-      state.values.forEach((val, id) => {
-        if (val !== STATES.NONE) {
-          const el = state.parts.get(id);
-          selected.push({ id, name: el?.getAttribute('data-name') || id, state: val });
-        }
-      });
-      const data = { version: 2, generatedAt: new Date().toISOString(), selected };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'hasar-secimleri.json'; a.click();
-      URL.revokeObjectURL(url);
-    });
-
-    document.getElementById('fileImport').addEventListener('change', async (e) => {
-      const file = e.target.files?.[0]; if (!file) return;
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        if (!Array.isArray(data.selected)) throw new Error('Geçersiz JSON');
-        // hepsini temizle
-        state.values.forEach((_, id) => setPartState(id, STATES.NONE));
-        // uygula
-        data.selected.forEach(item => {
-          const id = item.id;
-          const st = (item.state || '').toLowerCase();
-          if (state.parts.has(id) && ['original','painted','replaced'].includes(st)) {
-            setPartState(id, st);
-          }
-        });
-      } catch(err) {
-        alert('İçe aktarma hatası: ' + err.message);
-      } finally {
-        e.target.value = '';
-      }
-    });
-
-    // --- Dinamik renk ayarı ---
-    const colorInputs = {
-      original: document.getElementById('colorOriginal'),
-      painted:  document.getElementById('colorPainted'),
-      replaced: document.getElementById('colorReplaced'),
-    };
-
-    // başlangıç değerlerini inputlara yansıt
-    colorInputs.original.value = toHex(palette.original);
-    colorInputs.painted.value  = toHex(palette.painted);
-    colorInputs.replaced.value = toHex(palette.replaced);
-
-    Object.entries(colorInputs).forEach(([key, input]) => {
-      input.addEventListener('input', () => {
-        palette[key] = input.value;
-        applyPalette();
-      });
-    });
-
-    function applyPalette(){
-      // kök değişkenlerini güncelle
-      setColorVar('--color-original', palette.original);
-      setColorVar('--color-painted',  palette.painted);
-      setColorVar('--color-replaced', palette.replaced);
-
-      setColorVar('--color-original-weak', hexToRgba(palette.original, .22));
-      setColorVar('--color-painted-weak',  hexToRgba(palette.painted,  .22));
-      setColorVar('--color-replaced-weak', hexToRgba(palette.replaced, .22));
-      // sınıflar değişkenleri kullandığı için SVG otomatik güncellenir
-    }
-
-    function setColorVar(name, value){
-      document.documentElement.style.setProperty(name, value);
-    }
-
-    // Araç: #RRGGBB -> rgba(a)
-    function hexToRgba(hex, alpha){
-      const {r,g,b} = hexToRgb(hex);
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-    function hexToRgb(hex){
-      let h = hex.replace('#','');
-      if (h.length===3) h = h.split('').map(c=>c+c).join('');
-      const n = parseInt(h,16);
-      return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 };
-    }
-    function toHex(val){
-      // computed color rgb(...) veya hex olabilir
-      if (/^#/.test(val)) return val.toLowerCase();
-      const m = val.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)/i);
-      if (!m) return '#16a34a';
-      const r = (+m[1]).toString(16).padStart(2,'0');
-      const g = (+m[2]).toString(16).padStart(2,'0');
-      const b = (+m[3]).toString(16).padStart(2,'0');
-      return '#' + r + g + b;
-    }
-
-    // İlk paleti uygula
-    applyPalette();
+  })();
   </script>
 </body>
 </html>
