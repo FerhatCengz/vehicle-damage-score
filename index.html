@@ -162,6 +162,8 @@
             const svg = await loadInlineSVG('car.svg');
             loading.value = false;
             svgHost.value.appendChild(svg);
+              // SVG'yi aşağıya döndür
+              svg.style.transform = 'rotate(-90deg)';
             logger.info('SVG_LOADED', { message: 'SVG eklendi' });
 
             // parçaları topla & normalize et
