@@ -22,7 +22,7 @@
               <span><span class="badge rounded-pill bg-success">Orijinal</span></span>
               <span><span class="badge rounded-pill bg-info text-dark">Boyalı</span></span>
               <span><span class="badge rounded-pill bg-danger">Değişen</span></span>
-              <span class="text-muted">• Parçaya tıkla → Orijinal → Boyalı → Değişen → Orijinal…</span>
+              
             </div>
           </div>
         </div>
@@ -105,7 +105,7 @@
     function applyStateClass(el, state){
       el.classList.remove('border-success','border-info','border-danger');
       // Dolgu için Bootstrap'in arka plan renkleri
-      el.style.strokeWidth = '2';
+      el.style.strokeWidth = '1';
       if (state === STATES.ORIGINAL) {
         el.style.stroke = '#198754'; // Bootstrap success
         el.style.fill = 'rgba(25,135,84,0.18)';
