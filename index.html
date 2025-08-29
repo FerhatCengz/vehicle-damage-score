@@ -41,7 +41,12 @@
               <div id="svgHost" ref="svgHost" aria-live="polite" class="w-100 d-flex justify-content-center align-items-center" style="min-height:320px;"></div>
             </div>
             <div class="d-flex justify-content-end mb-3">
-              <button class="btn btn-outline-primary" @click="resetAllToOriginal">Sıfırla</button>
+              <div class="btn-group" role="group" aria-label="SVG Kontrolleri">
+                <button class="btn btn-outline-primary" @click="resetAllToOriginal">Sıfırla</button>
+                <button class="btn btn-outline-secondary" @click="rotateSvg">
+                  Döndür
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -147,6 +152,9 @@
         const svgHost = ref(null);
         const stage   = ref(null);
         const loading = ref(true);
+        const rotationAngles = [0, 90, 180, -90, -180];
+        let rotationIndex = 0;
+        let svgElement = null;
 
         // reaktif durum: id -> 'original' | 'painted' | 'replaced'
         const model = reactive({
@@ -162,8 +170,9 @@
             const svg = await loadInlineSVG('car.svg');
             loading.value = false;
             svgHost.value.appendChild(svg);
-              // SVG'yi aşağıya döndür
-              svg.style.transform = 'rotate(-90deg)';
+            svgElement = svg;
+            svg.style.transition = 'transform 0.3s';
+            svg.style.transform = `rotate(${rotationAngles[rotationIndex]}deg)`;
             logger.info('SVG_LOADED', { message: 'SVG eklendi' });
 
             // parçaları topla & normalize et
@@ -202,7 +211,7 @@
           }catch(err){
             console.error(err);
             loading.value = false;
-            svgHost.value.innerHTML = `<div class="empty">car.svg yüklenemedi.<br><small class="muted">Dosyayı bir yerel sunucuda açın veya SVG’yi inline gömün.</small></div>`;
+            svgHost.value.innerHTML = `<div class=\"empty\">car.svg yüklenemedi.<br><small class=\"muted\">Dosyayı bir yerel sunucuda açın veya SVG’yi inline gömün.</small></div>`;
             logger.error('SVG_LOAD_FAILED', { reason: err.message });
           }
         });
@@ -222,6 +231,13 @@
           logger.info('RESET_TO_ORIGINAL', { changed });
         }
 
+        function rotateSvg(){
+          rotationIndex = (rotationIndex + 1) % rotationAngles.length;
+          if (svgElement) {
+            svgElement.style.transform = `rotate(${rotationAngles[rotationIndex]}deg)`;
+          }
+        }
+
         // başlangıç seti
         function initAllToOriginal(model){
           let count = 0;
@@ -233,7 +249,7 @@
           logger.info('INITIALIZED_TO_ORIGINAL', { count });
         }
 
-        return { svgHost, stage, loading, resetAllToOriginal };
+        return { svgHost, stage, loading, resetAllToOriginal, rotateSvg };
       }
     }).mount('#app');
 
