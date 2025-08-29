@@ -3,101 +3,52 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Araba Hasar Seçici (Vue + Logging + Default=Orijinal)</title>
-
+  <title>Araba Hasar Seçici (Bootstrap)</title>
+  <!-- Bootstrap 5 CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Vue 3 (Global Build) -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-
-  <style>
-    :root{
-      /* Statik renk paleti — ihtiyaç olduğunda burayı değiştir */
-      --color-original: #16a34a;          /* Orijinal */
-      --color-original-weak: rgba(22,163,74,.22);
-
-      --color-painted:  #0ea5e9;          /* Boyalı */
-      --color-painted-weak:  rgba(14,165,233,.22);
-
-      --color-replaced: #ef4444;          /* Değişen */
-      --color-replaced-weak: rgba(239,68,68,.22);
-
-      --bg1: #0b0d10; --bg2: #12161c; --border: #1f2833; --muted:#94a3b8; --text:#e6ebf2;
-    }
-    html, body { height: 100%; }
-    body{
-      margin:0; font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-      color: var(--text);
-      background: radial-gradient(1200px 600px at 30% -10%, #141a22 0%, #0b0d10 60%);
-    }
-    header{
-      padding: 14px 18px; border-bottom: 1px solid var(--border);
-      display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-    }
-    header h1{ font-size:18px; margin:0; font-weight:600; letter-spacing:.2px; }
-    .legend{ display:flex; gap:14px; color:var(--muted); font-size:13px; align-items:center; flex-wrap:wrap; }
-    .dot{ width:14px; height:14px; border-radius:50%; display:inline-block; border:2px solid currentColor; }
-    .dot.original{ color: var(--color-original); background: var(--color-original-weak); }
-    .dot.painted{ color: var(--color-painted); background: var(--color-painted-weak); }
-    .dot.replaced{ color: var(--color-replaced); background: var(--color-replaced-weak); }
-
-    .wrap{ padding: 16px; max-width: 1200px; margin: 0 auto; }
-    .stage{
-      position:relative; display:grid; place-items:center; min-height:360px;
-      background: linear-gradient(180deg, #0f141b, #0b0d10); border:1px solid var(--border);
-      border-radius:12px; padding: clamp(10px, 2.5vw, 20px);
-    }
-    .stage svg{ width:min(100%, 1000px); height:auto; display:block; }
-    .empty{
-      position:absolute; inset:0; display:grid; place-items:center; text-align:center; color:var(--muted); pointer-events:none; padding:18px;
-    }
-    .tools{ display:flex; gap:8px; justify-content:flex-end; margin-top:10px; }
-    .btn{
-      appearance:none; border:1px solid var(--border); background:#0f1520; color:var(--text);
-      padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600;
-    }
-    .btn:hover{ background:#121a28; border-color:#2a3647; }
-    .btn:active{ transform: translateY(1px); }
-
-    /* Parça etkileşimi */
-    .part{ cursor:pointer; outline:none; transition: filter .15s ease; }
-    .part:hover{ filter: drop-shadow(0 0 10px rgba(160,200,255,.35)); }
-
-    /* Durum sınıfları — sadece bu sınıflar uygulanır */
-    .state-original{ stroke: var(--color-original) !important; stroke-width:2 !important; fill: var(--color-original-weak) !important; }
-    .state-painted{  stroke: var(--color-painted)  !important; stroke-width:2 !important; fill: var(--color-painted-weak)  !important; }
-    .state-replaced{ stroke: var(--color-replaced) !important; stroke-width:2 !important; fill: var(--color-replaced-weak) !important; }
-
-    /* Saydam parçada da dolgu uygula */
-    .part[selected-transparent="1"].state-original{ fill: var(--color-original-weak) !important; }
-    .part[selected-transparent="1"].state-painted{  fill: var(--color-painted-weak)  !important; }
-    .part[selected-transparent="1"].state-replaced{ fill: var(--color-replaced-weak) !important; }
-
-    footer{ color:var(--muted); font-size:12px; padding:10px 16px; border-top:1px solid var(--border); }
-  </style>
 </head>
 <body>
-  <div id="app">
-    <header>
-      <h1>Araba Hasar Seçici</h1>
-      <div class="legend">
-        <span><span class="dot original"></span> Orijinal</span>
-        <span><span class="dot painted"></span> Boyalı</span>
-        <span><span class="dot replaced"></span> Değişen</span>
-        <span class="muted">• Parçaya tıkla → Orijinal → Boyalı → Değişen → Orijinal…</span>
+  <div id="app" class="bg-light min-vh-100 d-flex flex-column">
+    <header class="border-bottom py-3 px-3 bg-white">
+      <div class="container-fluid">
+        <div class="row align-items-center">
+          <div class="col">
+            <h1 class="h4 fw-bold mb-0">Araba Hasar Seçici</h1>
+          </div>
+          <div class="col-auto">
+            <div class="d-flex gap-3 flex-wrap text-secondary small align-items-center">
+              <span><span class="badge rounded-pill bg-success">Orijinal</span></span>
+              <span><span class="badge rounded-pill bg-info text-dark">Boyalı</span></span>
+              <span><span class="badge rounded-pill bg-danger">Değişen</span></span>
+              <span class="text-muted">• Parçaya tıkla → Orijinal → Boyalı → Değişen → Orijinal…</span>
+            </div>
+          </div>
+        </div>
       </div>
     </header>
 
-    <main class="wrap">
-      <section class="stage" ref="stage">
-        <div class="empty" v-if="loading">car.svg yükleniyor…<br><small class="muted">Tıklanacak öğelere <code>class="part"</code> vermen önerilir.</small></div>
-        <div id="svgHost" ref="svgHost" aria-live="polite"></div>
-      </section>
-
-      <div class="tools">
-        <button class="btn" @click="resetAllToOriginal">Hepsini Orijinal Yap</button>
+    <main class="flex-grow-1 py-4">
+      <div class="container">
+        <div class="row justify-content-center">
+          <div class="col-12 col-md-10 col-lg-8">
+            <div class="position-relative bg-white border rounded-4 shadow-sm p-3 mb-4" style="min-height:340px;">
+              <div v-if="loading" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center text-secondary text-center" style="z-index:2; background:rgba(255,255,255,.7);">
+                <div class="spinner-border text-secondary mb-2" role="status"></div>
+                <div>car.svg yükleniyor…<br><small class="text-muted">Tıklanacak öğelere <code>class="part"</code> vermen önerilir.</small></div>
+              </div>
+              <div id="svgHost" ref="svgHost" aria-live="polite" class="w-100 d-flex justify-content-center align-items-center" style="min-height:320px;"></div>
+            </div>
+            <div class="d-flex justify-content-end mb-3">
+              <button class="btn btn-outline-primary" @click="resetAllToOriginal">Hepsini Orijinal Yap</button>
+            </div>
+          </div>
+        </div>
       </div>
     </main>
 
-    <footer>
+    <footer class="border-top py-2 px-3 bg-white text-muted small text-center">
       İpucu: Klavyede <strong>Enter</strong>/<strong>Space</strong> ile de parça durumunu değiştirebilirsin. (Önce parçaya odaklan)
     </footer>
   </div>
@@ -144,17 +95,31 @@
       if (idx === -1) return ORDER[0];
       return ORDER[(idx + 1) % ORDER.length];
     }
+    // Bootstrap renkleriyle SVG parça durumunu uygula
     function classFor(state){
-      if (state === STATES.ORIGINAL) return 'state-original';
-      if (state === STATES.PAINTED)  return 'state-painted';
-      if (state === STATES.REPLACED) return 'state-replaced';
+      if (state === STATES.ORIGINAL) return 'border-success';
+      if (state === STATES.PAINTED)  return 'border-info';
+      if (state === STATES.REPLACED) return 'border-danger';
       return '';
     }
     function applyStateClass(el, state){
-      el.classList.remove('state-original','state-painted','state-replaced');
-      const cls = classFor(state);
-      if (cls) el.classList.add(cls);
-      el.setAttribute('aria-pressed', cls ? 'true' : 'false');
+      el.classList.remove('border-success','border-info','border-danger');
+      // Dolgu için Bootstrap'in arka plan renkleri
+      el.style.strokeWidth = '2';
+      if (state === STATES.ORIGINAL) {
+        el.style.stroke = '#198754'; // Bootstrap success
+        el.style.fill = 'rgba(25,135,84,0.18)';
+      } else if (state === STATES.PAINTED) {
+        el.style.stroke = '#0dcaf0'; // Bootstrap info
+        el.style.fill = 'rgba(13,202,240,0.18)';
+      } else if (state === STATES.REPLACED) {
+        el.style.stroke = '#dc3545'; // Bootstrap danger
+        el.style.fill = 'rgba(220,53,69,0.18)';
+      } else {
+        el.style.stroke = '';
+        el.style.fill = '';
+      }
+      el.setAttribute('aria-pressed', state ? 'true' : 'false');
     }
     function normalizePart(el, idGen){
       if (!el.id) el.id = 'parca-' + idGen();
